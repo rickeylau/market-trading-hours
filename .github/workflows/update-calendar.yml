@@ -1,0 +1,45 @@
+
+name: Update Market Trading Hours
+
+on:
+  schedule:
+    - cron: '13 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: market-trading-hours-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Test trading calendar
+        run: python -m unittest -v
+
+      - name: Generate trading hours
+        run: python trading_hours.py
+
+      - name: Publish calendar
+        run: |
+          set -eu
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add holidays_snapshot.json market-trading-hours.ics
+          if git diff --cached --quiet; then
+            echo 'No calendar changes.'
+            exit 0
+          fi
+          git commit -m 'Update market trading hours'
+          git push
